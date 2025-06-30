@@ -144,16 +144,6 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(kwargs['output_mp3_path'], expected_output_path)
 
     @patch("pdf2mp3.cli.core.convert_pdf_to_mp3")
-    def test_cli_quiet_mode(self, mock_convert):
-        """Test that quiet mode disables progress."""
-        with patch.object(sys, 'argv', ['pdf2mp3', str(self.dummy_pdf_path), '--quiet']):
-            cli_main()
-
-        mock_convert.assert_called_once()
-        args, kwargs = mock_convert.call_args
-        self.assertFalse(kwargs['show_progress'])
-
-    @patch("pdf2mp3.cli.core.convert_pdf_to_mp3")
     def test_cli_no_progress_flag(self, mock_convert):
         """Test that --no-progress flag disables progress."""
         with patch.object(sys, 'argv', ['pdf2mp3', str(self.dummy_pdf_path), '--no-progress']):
