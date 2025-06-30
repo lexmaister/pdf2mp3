@@ -42,17 +42,36 @@ pip install .
 * tqdm
 
 ## Usage
+
+Ubuntu:
+```bash
+pdf2mp3 --pdf /path/to/book.pdf --output /path/to/book.mp3 --voice bf_emma --lang b --speed 0.8
+```
+
+Windows:
+```powershell
+pdf2mp3.exe --pdf /path/to/book.pdf --output /path/to/book.mp3 --voice bf_emma --lang b --speed 0.8
+```
+
+Parameters:
+* `--pdf`: Path to your PDF book.
+* `--output`: Path for the generated MP3.
+* `--voice`: (Optional) Voice model selection. Default: bf_emma.
+* `--lang`: (Optional) Language code for TTS model.
+* `--speed`: (Optional) Speech speed ratio (1.0 is normal, 0.8 is slower).
+
+### Full help
 ```bash
 pdf2mp3  –  Convert a PDF e-book to a single MP3 with Kokoro TTS
 -----------------------------------------------------------------
 
 USAGE
-    pdf2mp3 [OPTIONS] INPUT_PDF [OUTPUT_MP3]
+pdf2mp3 [--pdf PATH] [--output PATH] [OPTIONS]
 
-POSITIONAL ARGUMENTS
-    INPUT_PDF                Path to the source PDF file.
-    OUTPUT_MP3               Optional destination file.
-                             Defaults to INPUT_PDF basename with “.mp3”.
+FILES
+    --pdf PATH               Path to the source PDF file.
+    --output PATH            Optional destination file.
+                             Defaults to input pdf basename with “.mp3” in current working directory.
 
 CORE SYNTHESIS
   -l, --lang TEXT            Target language / accent code.  
@@ -97,7 +116,7 @@ RUNTIME & I/O
 MISCELLANEOUS
   -q, --quiet                Suppress non-error console output.
       --version              Show program version and exit.
-      --help                 Show this help message and exit.
+  -h, --help                 Show this help message and exit.
 
 NOTES
   • Sample rate is fixed at 24 000 Hz by Kokoro models.  
