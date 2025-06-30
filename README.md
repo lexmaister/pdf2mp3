@@ -1,7 +1,7 @@
 # pdf2mp3
 Convert a PDF e-book to a single MP3 with Kokoro TTS
 
-`pdf2mp3` is a command-line tool and Python package designed for creating audiobooks from PDF documents. It uses Kokoro TTS, a robust and versatile text-to-speech engine, to generate natural-sounding audio. The result is a seamless pipeline from book (PDF) to listenable MP3, ideal for audiobook enthusiasts and accessibility applications.
+`pdf2mp3` is a command-line tool and Python package designed for creating audiobooks from PDF documents. It uses [Kokoro TTS](https://huggingface.co/hexgrad/Kokoro-82M), a robust and versatile text-to-speech engine, to generate natural-sounding audio. The result is a seamless pipeline from book (PDF) to listenable MP3, ideal for audiobook enthusiasts and accessibility applications.
 
 ## Features
 * PDF to Audiobook: Extracts and reads the text from any standard PDF file.
@@ -60,6 +60,23 @@ Parameters:
 * `--lang`: (Optional) Language code for TTS model.
 * `--speed`: (Optional) Speech speed ratio (1.0 is normal, 0.8 is slower).
 
+### List of available languages
+```
+# 🇺🇸 'a' => American English, 
+# 🇬🇧 'b' => British English
+# 🇪🇸 'e' => Spanish es
+# 🇫🇷 'f' => French fr-fr
+# 🇮🇳 'h' => Hindi hi
+# 🇮🇹 'i' => Italian it
+# 🇯🇵 'j' => Japanese: pip install misaki[ja]
+# 🇧🇷 'p' => Brazilian Portuguese pt-br
+# 🇨🇳 'z' => Mandarin Chinese: pip install misaki[zh]
+```
+
+### List of available voices
+
+This list can found be [here](https://huggingface.co/hexgrad/Kokoro-82M/tree/main/voices). Also you can try different languages [here](https://hf.co/spaces/hexgrad/Kokoro-TTS).
+
 ### Full help
 ```bash
 pdf2mp3  –  Convert a PDF e-book to a single MP3 with Kokoro TTS
@@ -76,11 +93,9 @@ FILES
 CORE SYNTHESIS
   -l, --lang TEXT            Target language / accent code.  
                              Default: en-GB   (British English)
-      --list-langs           List all supported language codes and exit.
 
   -v, --voice TEXT           Voice preset.  
                              Default: bf_emma
-      --list-voices          List available voices and exit.
 
   -s, --speed FLOAT          Speaking-rate multiplier (0.5 – 2.0).  
                              Default: 0.8
