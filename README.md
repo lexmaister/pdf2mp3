@@ -121,28 +121,6 @@ CORE SYNTHESIS OPTIONS
 ```
 
 ## Warnings & Notes
------------------------------------------------------------------
-
-USAGE
-pdf2mp3 INPUT_PDF [OUTPUT_MP3] [OPTIONS]
-
-FILES (POSITIONAL)
-    INPUT_PDF                Path to the source PDF file.
-    OUTPUT_MP3               Optional destination file.
-                             Defaults to input pdf basename with “.mp3” in current working directory.
-
-CORE SYNTHESIS OPTIONS
-  -l, --lang TEXT            Target language code (e.g., 'a' for American English, 'b' for British English).
-                             Refer to README.md for the full list of supported codes.
-                             Default: 'b' (British English)
-  -v, --voice TEXT           Voice preset. Refer to README.md for available voices.
-                             Default: bf_emma
-  -s, --speed FLOAT          Speaking-rate multiplier (0.5 – 2.0).
-                             Default: 0.8
-... (other options) ...
-```
-
-## Warnings & Notes
 *   The application uses the `hexgrad/Kokoro-82M` model by default.
 *   Some PyTorch warnings (e.g., related to RNN dropout) may appear during execution; these are generally safe and originate from the underlying TTS library.
 

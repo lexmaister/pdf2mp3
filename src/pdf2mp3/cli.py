@@ -118,11 +118,6 @@ def main():
     # --- Miscellaneous Options ---
     misc_group = parser.add_argument_group("MISCELLANEOUS OPTIONS")
     misc_group.add_argument(
-        "-q", "--quiet",
-        action="store_true",
-        help="Suppress most non-error console output. Progress bar is also disabled."
-    )
-    misc_group.add_argument(
         "--version",
         action="version",
         version=f"%(prog)s {package_version}",
@@ -155,8 +150,6 @@ def main():
 
     # Adjust show_progress if quiet mode is enabled
     show_progress_actual = args.show_progress
-    if args.quiet:
-        show_progress_actual = False # Quiet mode implies no progress bar
 
     # --- Call Core Conversion Logic ---
     try:
