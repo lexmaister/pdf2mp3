@@ -1,7 +1,34 @@
 # pdf2mp3
 Convert a PDF e-book to a single MP3 with Kokoro TTS
 
-## Options
+`pdf2mp3` is a command-line tool and Python package designed for creating audiobooks from PDF documents. It uses Kokoro TTS, a robust and versatile text-to-speech engine, to generate natural-sounding audio. The result is a seamless pipeline from book (PDF) to listenable MP3, ideal for audiobook enthusiasts and accessibility applications.
+
+## Features
+* PDF to Audiobook: Extracts and reads the text from any standard PDF file.
+* Kokoro TTS Engine: Utilizes the Kokoro TTS pipeline for high quality, multilingual audio.
+* Custom Voice and Speech Speed: Choose different voices and set custom speaking rates.
+* Progress Feedback: Displays a progress bar for chunked synthesis.
+* Direct Export: Saves results as an MP3 with proper formatting and bit rate.
+* Chunked Processing: Splits the text into manageable chunks to optimize synthesis and tracking.
+* Device-aware: Automatically runs on GPU if available, otherwise uses CPU.
+
+## Installation
+Clone the repository
+```bash
+git clone https://github.com/lexmaister/pdf2mp3
+cd pdf2mp3
+pip install .
+```
+
+### Requirements
+* Python 3.10+
+* PyPDF2
+* kokoro (Kokoro TTS Python package)
+* soundfile
+* numpy
+* tqdm
+
+## Usage
 ```bash
 pdf2mp3  –  Convert a PDF e-book to a single MP3 with Kokoro TTS
 -----------------------------------------------------------------
@@ -63,3 +90,19 @@ NOTES
   • Sample rate is fixed at 24 000 Hz by Kokoro models.  
   • Output format is always MP3 in this version.
 ```
+
+## Warnings & Notes
+* By default, the Kokoro TTS repo ID defaults to hexgrad/Kokoro-82M.
+* To suppress model selection warnings, specify the repo explicitly.
+* Some PyTorch warnings related to RNN dropout and weight normalization may appear; they are safe but should be noted for future updates.
+
+## Troubleshooting
+* No audio generated: Make sure your PDF contains extractable text.
+* Performance: For very large PDFs, ensure you have sufficient RAM or split them into parts.
+* Device Support: The tool automatically selects CUDA if available.
+
+## License
+[MIT](./LICENSE)
+
+## Authors
+[lexmaister](lexmaister@gmail.com)
