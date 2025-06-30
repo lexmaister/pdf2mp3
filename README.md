@@ -13,10 +13,23 @@ Convert a PDF e-book to a single MP3 with Kokoro TTS
 * Device-aware: Automatically runs on GPU if available, otherwise uses CPU.
 
 ## Installation
-Clone the repository
+Clone the repository, setup virtual environment and run it.
+
+Ubuntu:
 ```bash
 git clone https://github.com/lexmaister/pdf2mp3
 cd pdf2mp3
+python3 -m venv .venv
+source .venv/bin/activate
+pip install .
+```
+
+Windows (PowerShell):
+```powershell
+git clone https://github.com/lexmaister/pdf2mp3
+cd pdf2mp3
+python -m venv .venv
+.\.venv\Scripts\activate
 pip install .
 ```
 
