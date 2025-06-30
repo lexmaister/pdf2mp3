@@ -1,5 +1,0 @@
-PyPDF2
-kokoro
-soundfile
-numpy
-tqdm

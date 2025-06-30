@@ -1,2 +1,0 @@
-[console_scripts]
-pdf2mp3 = pdf2mp3.cli:main
