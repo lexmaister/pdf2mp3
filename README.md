@@ -83,11 +83,11 @@ pdf2mp3  –  Convert a PDF e-book to a single MP3 with Kokoro TTS
 -----------------------------------------------------------------
 
 USAGE
-pdf2mp3 [--pdf PATH] [--output PATH] [OPTIONS]
+pdf2mp3 INPUT_PDF [OUTPUT_MP3] [OPTIONS]
 
-FILES
-    --pdf PATH               Path to the source PDF file.
-    --output PATH            Optional destination file.
+FILES (POSITIONAL)
+    INPUT_PDF                Path to the source PDF file.
+    OUTPUT_MP3               Optional destination file.
                              Defaults to input pdf basename with “.mp3” in current working directory.
 
 CORE SYNTHESIS
