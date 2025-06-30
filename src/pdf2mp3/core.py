@@ -57,7 +57,7 @@ def convert_pdf_to_mp3(
     lang: str = "b",  # Default to British English code
     voice: str = "bf_emma",
     speed: float = 0.8,
-    split_pattern: str = r'[.”]\\s*\\n',
+    split_pattern: str = r'[.”]\s*\n',
     bitrate_mode: str = "CONSTANT",
     compression_level: float = 0.5,
     device: str | None = None,

@@ -56,10 +56,10 @@ def main():
     synthesis_group.add_argument(
         "--split-pattern",
         type=str,
-        default=r'[.”]\\s*\\n', # Default from README
+        default=r'[.”]\s*\n',
         help="Regular-expression pattern used to split extracted text from the PDF "
              "into smaller chunks for TTS processing.\n"
-             "Default: '[.”]\\\\s*\\\\n' (splits after periods or quotation marks "
+             "Default: '[.”]\\s*\\n' (splits after periods or quotation marks "
              "followed by optional whitespace and a newline)."
     )
 
@@ -163,12 +163,12 @@ def main():
         core.convert_pdf_to_mp3(
             pdf_path=args.input_pdf,
             output_mp3_path=output_mp3_path,
-        lang=args.lang,
-        voice=args.voice,
-        speed=args.speed,
-        split_pattern=args.split_pattern,
-        bitrate_mode=args.bitrate, # Pass the renamed arg
-        compression_level=args.compression, # Pass the renamed arg
+            lang=args.lang,
+            voice=args.voice,
+            speed=args.speed,
+            split_pattern=args.split_pattern,
+            bitrate_mode=args.bitrate, # Pass the renamed arg
+            compression_level=args.compression, # Pass the renamed arg
             device=args.device,
             tmp_dir=args.tmp_dir,
             resume=args.resume,
