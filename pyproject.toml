@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdf2mp3"
+version = "0.1.0"
+authors = [
+  { name="lexmaister", email="lexmaister@gmail.com" },
+]
+description = "Convert a PDF e-book to a single MP3 with Kokoro TTS"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "PyPDF2",
+    "kokoro",
+    "soundfile",
+    "numpy",
+    "tqdm",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/lexmaister/pdf2mp3"
+"Bug Tracker" = "https://github.com/lexmaister/pdf2mp3/issues"
+
+[project.scripts]
+pdf2mp3 = "pdf2mp3.cli:main"
