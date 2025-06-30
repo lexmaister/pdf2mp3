@@ -60,20 +60,18 @@ Parameters:
 * `--lang`: (Optional) Language code for TTS model.
 * `--speed`: (Optional) Speech speed ratio (1.0 is normal, 0.8 is slower).
 
-### List of available languages
+### Available languages
 ```
-# 🇺🇸 'a' => American English, 
+# 🇺🇸 'a' => American English 
 # 🇬🇧 'b' => British English
 # 🇪🇸 'e' => Spanish es
 # 🇫🇷 'f' => French fr-fr
-# 🇮🇳 'h' => Hindi hi
-# 🇮🇹 'i' => Italian it
-# 🇯🇵 'j' => Japanese: pip install misaki[ja]
-# 🇧🇷 'p' => Brazilian Portuguese pt-br
-# 🇨🇳 'z' => Mandarin Chinese: pip install misaki[zh]
 ```
 
-### List of available voices
+More supported languages - see in [Kokoro documentation](https://github.com/hexgrad/kokoro#advanced-usage)
+
+
+### Available voices
 
 This list can found be [here](https://huggingface.co/hexgrad/Kokoro-82M/tree/main/voices). Also you can try different languages [here](https://hf.co/spaces/hexgrad/Kokoro-TTS).
 
