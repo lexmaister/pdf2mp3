@@ -43,41 +43,84 @@ pip install .
 
 ## Usage
 
-Ubuntu:
+**Basic Conversion:**
+
+Ubuntu/Linux:
 ```bash
-pdf2mp3 --pdf /path/to/book.pdf --output /path/to/book.mp3 --voice bf_emma --lang b --speed 0.8
+pdf2mp3 /path/to/your/book.pdf /path/to/your/output.mp3 --voice bf_emma --lang b --speed 0.8
 ```
 
-Windows:
+Windows (PowerShell):
 ```powershell
-pdf2mp3.exe --pdf /path/to/book.pdf --output /path/to/book.mp3 --voice bf_emma --lang b --speed 0.8
+pdf2mp3.exe /path/to/your/book.pdf /path/to/your/output.mp3 --voice bf_emma --lang b --speed 0.8
+```
+
+If `OUTPUT_MP3` is omitted, the output file will be named after the input PDF (e.g., `book.mp3`) and saved in the current working directory.
+
+**Example with only required argument:**
+```bash
+pdf2mp3 /path/to/another_book.pdf
+# This will create another_book.mp3 in the current directory using default settings.
 ```
 
 Parameters:
-* `--pdf`: Path to your PDF book.
-* `--output`: Path for the generated MP3.
-* `--voice`: (Optional) Voice model selection. Default: bf_emma.
-* `--lang`: (Optional) Language code for TTS model.
-* `--speed`: (Optional) Speech speed ratio (1.0 is normal, 0.8 is slower).
+* `INPUT_PDF`: (Required) Path to the source PDF file.
+* `OUTPUT_MP3`: (Optional) Path for the generated MP3. Defaults to the input PDF's basename with an `.mp3` extension in the current working directory.
+* `--lang <CODE>`: (Optional) Language code for the TTS model. Default: `b` (British English). See "Available Languages" below.
+* `--voice <VOICE_NAME>`: (Optional) Voice model selection. Default: `bf_emma`. See "Available Voices" below.
+* `--speed <RATIO>`: (Optional) Speech speed ratio (e.g., 0.8 for slower, 1.0 for normal, 1.2 for faster). Default: `0.8`.
+* For a full list of options, run `pdf2mp3 --help`.
 
-### Available languages
-```
-# 🇺🇸 'a' => American English 
-# 🇬🇧 'b' => British English
-# 🇪🇸 'e' => Spanish es
-# 🇫🇷 'f' => French fr-fr
-```
+### Available Languages
 
-More supported languages - see in [Kokoro documentation](https://github.com/hexgrad/kokoro#advanced-usage)
+The following language codes are supported by the underlying Kokoro TTS engine:
 
+*   `a`: American English 🇺🇸
+*   `b`: British English 🇬🇧
+*   `e`: Spanish 🇪🇸
+*   `f`: French 🇫🇷
+*   `h`: Hindi 🇮🇳
+*   `i`: Italian 🇮🇹
+*   `j`: Japanese 🇯🇵 (Requires `pip install misaki[ja]`)
+*   `p`: Brazilian Portuguese 🇧🇷
+*   `z`: Mandarin Chinese 🇨🇳 (Requires `pip install misaki[zh]`)
 
-### Available voices
+For the most up-to-date list, refer to the [Kokoro TTS documentation](https://github.com/hexgrad/kokoro#advanced-usage).
 
-This list can found be [here](https://huggingface.co/hexgrad/Kokoro-82M/tree/main/voices). Also you can try different languages [here](https://hf.co/spaces/hexgrad/Kokoro-TTS).
+### Available Voices
 
-### Full help
+A list of available voices can be found on the [Kokoro-82M model card on Hugging Face](https://huggingface.co/hexgrad/Kokoro-82M/tree/main/voices).
+You can also experiment with different voices and languages at the [Kokoro TTS Hugging Face Space](https://hf.co/spaces/hexgrad/Kokoro-TTS).
+The default voice is `bf_emma`.
+
+### Full Help Text
+
+For the complete list of all command-line options and their descriptions, run:
 ```bash
-pdf2mp3  –  Convert a PDF e-book to a single MP3 with Kokoro TTS
+pdf2mp3 --help
+```
+This will display a detailed help message similar to the following (abbreviated here):
+```
+USAGE
+pdf2mp3 INPUT_PDF [OUTPUT_MP3] [OPTIONS]
+
+FILES (POSITIONAL)
+    INPUT_PDF                Path to the source PDF file.
+    OUTPUT_MP3               Optional destination file.
+                             Defaults to input pdf basename with “.mp3” in current working directory.
+
+CORE SYNTHESIS OPTIONS
+  -l, --lang TEXT            Target language code (e.g., 'a' for American English, 'b' for British English).
+                             Refer to README.md for the full list of supported codes.
+                             Default: 'b' (British English)
+  -v, --voice TEXT           Voice preset. Refer to README.md for available voices.
+                             Default: bf_emma
+  -s, --speed FLOAT          Speaking-rate multiplier (0.5 – 2.0).  
+                             Default: 0.8
+... (other options) ...
+```
+
+## Warnings & Notes
 -----------------------------------------------------------------
 
 USAGE
@@ -88,58 +131,20 @@ FILES (POSITIONAL)
     OUTPUT_MP3               Optional destination file.
                              Defaults to input pdf basename with “.mp3” in current working directory.
 
-CORE SYNTHESIS
-  -l, --lang TEXT            Target language / accent code.  
-                             Default: en-GB   (British English)
-
-  -v, --voice TEXT           Voice preset.  
+CORE SYNTHESIS OPTIONS
+  -l, --lang TEXT            Target language code (e.g., 'a' for American English, 'b' for British English).
+                             Refer to README.md for the full list of supported codes.
+                             Default: 'b' (British English)
+  -v, --voice TEXT           Voice preset. Refer to README.md for available voices.
                              Default: bf_emma
-
-  -s, --speed FLOAT          Speaking-rate multiplier (0.5 – 2.0).  
+  -s, --speed FLOAT          Speaking-rate multiplier (0.5 – 2.0).
                              Default: 0.8
-
-      --split-pattern REGEX  Regular-expression used to split extracted text
-                             into synthesis chunks.  
-                             Default: '[.”]\\s*\\n'
-
-AUDIO ENCODING
-      --bitrate {CONSTANT|VARIABLE}
-                             MP3 bitrate control mode.  
-                               CONSTANT – fixed (CBR) [default]  
-                               VARIABLE – VBR (average bitrate)
-
-      --compression FLOAT    Compression level 0 – 1 (higher = smaller file,
-                             lower = better fidelity).  
-                             Default: 0.5
-
-RUNTIME & I/O
-      --device TEXT          Compute device:  cpu, cuda, cuda:0, …  
-                             Auto-detected if omitted.
-
-      --overwrite            Replace an existing OUTPUT_MP3.
-
-      --resume               Continue a previously interrupted run by reusing
-                             the temporary workspace of chunk files.
-
-      --tmp-dir PATH         Directory for temporary chunk storage
-                             (default: “.<output-stem>_chunks” beside OUTPUT).
-
-      --no-progress          Disable the live progress bar.
-
-MISCELLANEOUS
-  -q, --quiet                Suppress non-error console output.
-      --version              Show program version and exit.
-  -h, --help                 Show this help message and exit.
-
-NOTES
-  • Sample rate is fixed at 24 000 Hz by Kokoro models.  
-  • Output format is always MP3 in this version.
+... (other options) ...
 ```
 
 ## Warnings & Notes
-* By default, the Kokoro TTS repo ID defaults to hexgrad/Kokoro-82M.
-* To suppress model selection warnings, specify the repo explicitly.
-* Some PyTorch warnings related to RNN dropout and weight normalization may appear; they are safe but should be noted for future updates.
+*   The application uses the `hexgrad/Kokoro-82M` model by default.
+*   Some PyTorch warnings (e.g., related to RNN dropout) may appear during execution; these are generally safe and originate from the underlying TTS library.
 
 ## Troubleshooting
 * No audio generated: Make sure your PDF contains extractable text.

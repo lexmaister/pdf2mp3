@@ -2,15 +2,23 @@ import argparse
 from pathlib import Path
 import sys
 from . import core
-from . import __version__ as package_version # Corrected import
+from . import __version__ as package_version
 
 def main():
+    """
+    Command-Line Interface for pdf2mp3.
+
+    Parses command-line arguments and calls the core conversion function.
+    Handles argument validation and provides user feedback.
+    """
     parser = argparse.ArgumentParser(
-        description="Convert a PDF e-book to a single MP3 with Kokoro TTS.",
-        formatter_class=argparse.RawTextHelpFormatter # For better help text formatting
+        prog="pdf2mp3", # Explicitly set program name for help messages
+        description="Convert a PDF e-book to a single MP3 file using Kokoro TTS.",
+        formatter_class=argparse.RawTextHelpFormatter, # Preserves formatting in help text
+        epilog="For more information, see README.md or visit the project repository."
     )
 
-    # Positional Arguments
+    # --- Positional Arguments ---
     parser.add_argument(
         "input_pdf",
         type=Path,
@@ -20,32 +28,24 @@ def main():
         "output_mp3",
         type=Path,
         nargs='?', # Optional
-        help="Optional destination file.\nDefaults to INPUT_PDF basename with '.mp3'."
+        help="Optional destination file path for the MP3.\n"
+             "Defaults to the input PDF's basename with an '.mp3' extension "
+             "in the current working directory."
     )
 
-    # Core Synthesis Group
-    synthesis_group = parser.add_argument_group("CORE SYNTHESIS")
+    # --- Core Synthesis Options ---
+    synthesis_group = parser.add_argument_group("CORE SYNTHESIS OPTIONS")
     synthesis_group.add_argument(
         "-l", "--lang",
         type=str,
-        default="en-GB",
-        help="Target language / accent code.\nDefault: en-GB (British English)"
-    )
-    synthesis_group.add_argument(
-        "--list-langs",
-        action="store_true",
-        help="List all supported language codes and exit."
+        default="b", # Default to British English code
+        help="Target language code (e.g., 'a' for American English, 'b' for British English).\nRefer to README.md for the full list of supported codes.\nDefault: 'b' (British English)"
     )
     synthesis_group.add_argument(
         "-v", "--voice",
         type=str,
         default="bf_emma", # Default from README
-        help="Voice preset.\nDefault: bf_emma"
-    )
-    synthesis_group.add_argument(
-        "--list-voices",
-        action="store_true",
-        help="List available voices and exit."
+        help="Voice preset. Refer to README.md for available voices.\nDefault: bf_emma"
     )
     synthesis_group.add_argument(
         "-s", "--speed",
@@ -57,13 +57,16 @@ def main():
         "--split-pattern",
         type=str,
         default=r'[.”]\\s*\\n', # Default from README
-        help="Regular-expression used to split extracted text\ninto synthesis chunks.\nDefault: '[.”]\\\\s*\\\\n'"
+        help="Regular-expression pattern used to split extracted text from the PDF "
+             "into smaller chunks for TTS processing.\n"
+             "Default: '[.”]\\\\s*\\\\n' (splits after periods or quotation marks "
+             "followed by optional whitespace and a newline)."
     )
 
-    # Audio Encoding Group
-    audio_group = parser.add_argument_group("AUDIO ENCODING")
+    # --- Audio Encoding Options ---
+    audio_group = parser.add_argument_group("AUDIO ENCODING OPTIONS")
     audio_group.add_argument(
-        "--bitrate", # Renamed from --bitrate to avoid conflict with potential future actual bitrate int values
+        "--bitrate",
         choices=['CONSTANT', 'VARIABLE'],
         type=str.upper, # Convert to uppercase for easier comparison
         default='CONSTANT',
@@ -73,11 +76,15 @@ def main():
         "--compression", # Renamed from --compression-float to be more user-friendly
         type=float,
         default=0.5,
-        help="Compression level 0 – 1 (higher = smaller file,\nlower = better fidelity).\nDefault: 0.5"
+        help="Compression level (0.0 to 1.0).\n"
+             "Higher values generally result in smaller file sizes (lower bitrate/quality).\n"
+             "Lower values aim for better fidelity (higher bitrate/quality).\n"
+             "Actual effect depends on the --bitrate mode (CONSTANT or VARIABLE).\n"
+             "Default: 0.5"
     )
 
-    # Runtime & I/O Group
-    runtime_group = parser.add_argument_group("RUNTIME & I/O")
+    # --- Runtime and I/O Options ---
+    runtime_group = parser.add_argument_group("RUNTIME AND I/O OPTIONS")
     runtime_group.add_argument(
         "--device",
         type=str,
@@ -105,90 +112,79 @@ def main():
         action="store_false", # Becomes False if flag is present
         dest="show_progress", # Store in 'show_progress'
         default=True, # Default is to show progress
-        help="Disable the live progress bar."
+        help="Disable the live progress bar during audio synthesis."
     )
 
-    # Miscellaneous Group
-    misc_group = parser.add_argument_group("MISCELLANEOUS")
+    # --- Miscellaneous Options ---
+    misc_group = parser.add_argument_group("MISCELLANEOUS OPTIONS")
     misc_group.add_argument(
         "-q", "--quiet",
         action="store_true",
-        help="Suppress non-error console output."
+        help="Suppress most non-error console output. Progress bar is also disabled."
     )
     misc_group.add_argument(
         "--version",
         action="version",
-        version=f"%(prog)s {package_version}", # Dynamically get version
-        help="Show program version and exit."
+        version=f"%(prog)s {package_version}",
+        help="Show program's version number and exit."
     )
-    # --help is added automatically by argparse
+    # argparse automatically adds --help
 
     args = parser.parse_args()
 
-    # Handle special informational flags
-    if args.list_langs:
-        core.list_kokoro_languages()
-        sys.exit(0)
+    # --- Argument Post-processing and Validation ---
 
-    if args.list_voices:
-        core.list_kokoro_voices(lang=args.lang if args.lang != "en-GB" else None) # Pass lang if specified
-        sys.exit(0)
-
-    # Determine output path if not provided
+    # Determine output MP3 path if not explicitly provided
     output_mp3_path = args.output_mp3
     if output_mp3_path is None:
-        output_mp3_path = args.input_pdf.with_suffix(".mp3")
+        # Default to same name as input PDF but with .mp3 extension, in current dir
+        output_mp3_path = Path.cwd() / (args.input_pdf.stem + ".mp3")
 
-    # Validate input PDF
+
+    # Validate input PDF file existence
     if not args.input_pdf.is_file():
-        print(f"Error: Input PDF file not found: {args.input_pdf}")
-        sys.exit(1)
+        parser.error(f"Input PDF file not found: {args.input_pdf}")
 
-    # Validate speed
+    # Validate speed range
     if not (0.5 <= args.speed <= 2.0):
-        print(f"Error: Speed must be between 0.5 and 2.0. Got: {args.speed}")
-        sys.exit(1)
+        parser.error(f"Speed must be between 0.5 and 2.0. Got: {args.speed}")
 
-    # Validate compression level
+    # Validate compression level range
     if not (0.0 <= args.compression <= 1.0):
-        print(f"Error: Compression level must be between 0.0 and 1.0. Got: {args.compression}")
-        sys.exit(1)
+        parser.error(f"Compression level must be between 0.0 and 1.0. Got: {args.compression}")
 
-    # Quiet mode: redirect stdout to /dev/null or equivalent
-    # This is a simple way; a more robust way involves custom stream handlers or logging.
-    # For now, if quiet, critical print statements in core.py might need adjustment
-    # or core.py needs to accept a quiet flag.
-    # Let's assume core.py prints essential info and errors regardless,
-    # and CLI controls additional verbosity if needed later.
-    # For now, `quiet` primarily means CLI itself won't print extra status messages.
-    # The `show_progress` flag handles the progress bar.
-
+    # Adjust show_progress if quiet mode is enabled
+    show_progress_actual = args.show_progress
     if args.quiet:
-        # This is a bit of a hack. Proper logging framework would be better.
-        # For now, let's assume core functions will still print errors.
-        # We can pass a `quiet` flag to `convert_pdf_to_mp3` if necessary.
-        # Let's make core.py's print statements conditional or use logging.
-        # For now, this will only suppress CLI prints, not core prints.
-        pass
+        show_progress_actual = False # Quiet mode implies no progress bar
 
-
-    # Call the core conversion function
-    core.convert_pdf_to_mp3(
-        pdf_path=args.input_pdf,
-        output_mp3_path=output_mp3_path,
+    # --- Call Core Conversion Logic ---
+    try:
+        core.convert_pdf_to_mp3(
+            pdf_path=args.input_pdf,
+            output_mp3_path=output_mp3_path,
         lang=args.lang,
         voice=args.voice,
         speed=args.speed,
         split_pattern=args.split_pattern,
         bitrate_mode=args.bitrate, # Pass the renamed arg
         compression_level=args.compression, # Pass the renamed arg
-        device=args.device,
-        tmp_dir=args.tmp_dir,
-        resume=args.resume,
-        show_progress=args.show_progress,
-        overwrite=args.overwrite,
-        # TODO: Pass quiet flag to core if core is modified to support it
-    )
+            device=args.device,
+            tmp_dir=args.tmp_dir,
+            resume=args.resume,
+            show_progress=show_progress_actual, # Use potentially modified value
+            overwrite=args.overwrite,
+            # Note: The 'quiet' flag itself is not directly passed to core.
+            # Instead, its effect (like disabling progress bar) is handled here.
+            # Core functions should ideally use a logging setup if granular
+            # silence is needed there, or accept a 'verbose'/'quiet' flag.
+            # For now, core prints essential info/errors.
+        )
+    except Exception as e:
+        # Catch-all for unexpected errors during core processing
+        print(f"An unexpected error occurred: {e}", file=sys.stderr)
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
