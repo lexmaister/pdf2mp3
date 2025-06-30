@@ -1,0 +1,13 @@
+LICENSE
+README.md
+pyproject.toml
+src/pdf2mp3/__init__.py
+src/pdf2mp3/cli.py
+src/pdf2mp3/core.py
+src/pdf2mp3.egg-info/PKG-INFO
+src/pdf2mp3.egg-info/SOURCES.txt
+src/pdf2mp3.egg-info/dependency_links.txt
+src/pdf2mp3.egg-info/entry_points.txt
+src/pdf2mp3.egg-info/requires.txt
+src/pdf2mp3.egg-info/top_level.txt
+tests/test_core.py
