@@ -10,23 +10,45 @@ import os
 from pathlib import Path
 
 
-def extract_text_from_pdf(pdf_path: Path) -> str:
+def extract_text_from_pdf(pdf_path: Path, split_patterns: str) -> tuple[str, ...]:
     """
-    Extracts all text content from a given PDF file.
+    Extracts all text content from a given PDF file and splits it into chunks.
 
     Args:
         pdf_path: Path to the PDF file.
+        split_patterns: Regex pattern to split the extracted text.
 
     Returns:
-        A string containing the extracted text, with newlines between pages.
-        Returns an empty string if no text can be extracted.
+        A tuple of strings, representing the text chunks.
+        Returns an empty tuple if no text can be extracted.
     """
     text = ""
-    with open(pdf_path, "rb") as fh:
-        pdf_reader = PyPDF2.PdfReader(fh)
-        for page in pdf_reader.pages:
-            text += (page.extract_text() or "") + "\\n" # Add newline between pages
-    return text
+    try:
+        with open(pdf_path, "rb") as fh:
+            pdf_reader = PyPDF2.PdfReader(fh)
+            if not pdf_reader.pages: # Handle empty or unreadable PDFs early
+                return tuple()
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text: # Ensure page_text is not None
+                    text += page_text + "\\n" # Add newline between pages
+    except FileNotFoundError:
+        print(f"Error: PDF file not found at {pdf_path}")
+        return tuple()
+    except PyPDF2.errors.PdfReadError as e:
+        print(f"Error reading PDF file {pdf_path}: {e}")
+        return tuple()
+    except Exception as e: # Catch other potential errors during PDF processing
+        print(f"An unexpected error occurred while processing {pdf_path}: {e}")
+        return tuple()
+
+    if not text.strip():
+        return tuple()
+
+    # split_patterns is now a required argument, so we always split.
+    compiled_pat = re.compile(split_patterns)
+    chunks = tuple(c.strip() for c in compiled_pat.split(text) if c.strip())
+    return chunks if chunks else tuple() # Ensure not to return (None,) or similar if all chunks are empty
 
 def get_device(device_str: str | None = None) -> str:
     """
@@ -101,10 +123,15 @@ def convert_pdf_to_mp3(
 
     # 1. Extract text
     print(f"Extracting text from {pdf_path}...")
-    text = extract_text_from_pdf(pdf_path)
-    if not text.strip():
-        print("No text could be extracted from the PDF.")
+    # Pass split_pattern to extract_text_from_pdf
+    chunks = extract_text_from_pdf(pdf_path, split_pattern)
+
+    if not chunks: # If chunks is empty tuple
+        print("No text could be extracted or no text chunks to synthesize after splitting.")
         return
+
+    num_chunks = len(chunks)
+    print(f"Text extracted and split into {num_chunks} chunks.")
 
     # 2. Initialize Kokoro TTS pipeline
     print(f"Initializing Kokoro TTS with language code '{lang}', voice '{voice}' on device '{actual_device}'...")
@@ -115,16 +142,7 @@ def convert_pdf_to_mp3(
         print("Please ensure the language code is valid (see README.md) and the voice is supported.")
         return
 
-    # 3. Split text into synthesizable chunks
-    compiled_split_pat = re.compile(split_pattern)
-    chunks = [c.strip() for c in compiled_split_pat.split(text) if c.strip()]
-    num_chunks = len(chunks)
-
-    if num_chunks == 0:
-        print("No text chunks to synthesize after splitting.")
-        return
-
-    print(f"Text split into {num_chunks} chunks.")
+    # 3. (Text splitting is now done in extract_text_from_pdf)
 
     # 4. Handle temporary directory and resume functionality
     if tmp_dir is None:
