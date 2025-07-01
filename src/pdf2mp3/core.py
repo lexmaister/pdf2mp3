@@ -223,8 +223,11 @@ def convert_pdf_to_mp3(
             continue
 
         try:
-            # Kokoro pipeline returns: (processed_text, voice_used, lang_used, audio_data)
-            _, _, _, audio_data = pipeline(
+            # Kokoro pipeline now expected to return 2 values.
+            # Assuming the second value is audio_data.
+            # The first value might be a tuple of (processed_text, voice_used, lang_used) or just processed_text.
+            # As these are currently discarded with '_', we'll assign it to a single underscore.
+            _, audio_data = pipeline(
                 text_chunk,
                 voice=voice,
                 speed=speed,
