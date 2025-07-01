@@ -38,7 +38,48 @@ def mock_args(tmp_path, monkeypatch):
 def dummy_pdf(tmp_path):
     """Creates a dummy PDF file for testing purposes."""
     pdf_path = tmp_path / "test_document.pdf"
-    pdf_path.write_text("This is a dummy PDF content.")
+    # Use bytes for a minimal valid PDF structure
+    minimal_pdf_content = b"""%PDF-1.0
+%BINARY
+1 0 obj
+  << /Type /Catalog
+     /Pages 2 0 R
+  >>
+endobj
+2 0 obj
+  << /Type /Pages
+     /Kids [3 0 R]
+     /Count 1
+  >>
+endobj
+3 0 obj
+  << /Type /Page
+     /Parent 2 0 R
+     /MediaBox [0 0 612 792]
+     /Contents 4 0 R
+     /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >>
+  >>
+endobj
+4 0 obj
+  << /Length 19 >>
+stream
+BT /F1 12 Tf 100 100 Td ( ) Tj ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f
+0000000016 00000 n
+0000000070 00000 n
+0000000160 00000 n
+0000000290 00000 n
+trailer
+  << /Size 5
+     /Root 1 0 R
+  >>
+%%EOF
+"""
+    pdf_path.write_bytes(minimal_pdf_content)
     return pdf_path
 
 @pytest.fixture
