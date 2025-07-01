@@ -223,21 +223,32 @@ def convert_pdf_to_mp3(
             continue
 
         try:
-            # Kokoro pipeline now expected to return 2 values.
-            # Assuming the second value is audio_data.
-            # The first value might be a tuple of (processed_text, voice_used, lang_used) or just processed_text.
-            # As these are currently discarded with '_', we'll assign it to a single underscore.
-            _, audio_data = pipeline(
+            # Kokoro pipeline call and handling of its return values.
+            # The structure of returned_values was previously causing unpacking errors.
+            # We now capture all returned values and attempt to extract audio_data.
+            # Assumption: audio_data is the last element. This may need adjustment.
+            returned_values = pipeline(
                 text_chunk,
                 voice=voice,
                 speed=speed,
             )
-            if audio_data is not None and len(audio_data) > 0:
+            # Log the returned values to help diagnose if the assumption is wrong.
+            print(f"DEBUG: pipeline returned: {returned_values}")
+
+            # Assuming audio_data is the last element if returned_values is a tuple/list
+            if isinstance(returned_values, (list, tuple)) and len(returned_values) > 0:
+                audio_data = returned_values[-1]
+            elif isinstance(returned_values, np.ndarray): # If pipeline directly returns an ndarray
+                audio_data = returned_values
+            else:
+                audio_data = None # Or handle as an error/unexpected type
+
+            if audio_data is not None and isinstance(audio_data, np.ndarray) and audio_data.size > 0:
                 all_audio_segments.append(audio_data)
                 np.save(chunk_audio_file, audio_data)  # Save for potential resume
             else:
                 print(
-                    f'Warning: No audio generated for chunk {i+1}. Text: "{text_chunk[:50]}..."'
+                    f'Warning: No valid audio data obtained for chunk {i+1}. Text: "{text_chunk[:50]}..." Pipeline returned: {returned_values}'
                 )
         except Exception as e:
             print(f"Error synthesizing chunk {i+1} ('{text_chunk[:50]}...'): {e}")
