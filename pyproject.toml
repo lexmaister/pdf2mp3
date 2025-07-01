@@ -22,6 +22,7 @@ dependencies = [
     "soundfile",
     "numpy",
     "tqdm",
+    "pytest"
 ]
 
 [project.urls]
@@ -30,9 +31,3 @@ dependencies = [
 
 [project.scripts]
 pdf2mp3 = "pdf2mp3.cli:main"
-
-[project.optional-dependencies]
-dev = [
-    # "pytest>=7.0.0",
-    # "pytest-mock>=3.0.0",
-]
