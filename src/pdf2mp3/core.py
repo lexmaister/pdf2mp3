@@ -226,22 +226,56 @@ def convert_pdf_to_mp3(
             # Kokoro pipeline call and handling of its return values.
             # The structure of returned_values was previously causing unpacking errors.
             # We now capture all returned values and attempt to extract audio_data.
-            # Assumption: audio_data is the last element. This may need adjustment.
-            returned_values = pipeline(
+            # KPipeline returns a generator, so we need to iterate or call next().
+            generator_output = pipeline(
                 text_chunk,
                 voice=voice,
                 speed=speed,
             )
-            # Log the returned values to help diagnose if the assumption is wrong.
-            print(f"DEBUG: pipeline returned: {returned_values}")
+            print(f"DEBUG: pipeline returned: {generator_output}")
 
-            # Assuming audio_data is the last element if returned_values is a tuple/list
-            if isinstance(returned_values, (list, tuple)) and len(returned_values) > 0:
-                audio_data = returned_values[-1]
-            elif isinstance(returned_values, np.ndarray): # If pipeline directly returns an ndarray
-                audio_data = returned_values
+            audio_data = None
+            # Check if it's an iterator/generator and not a type we'd misinterpret (like string or ndarray itself)
+            if hasattr(generator_output, '__iter__') and not isinstance(generator_output, (str, bytes, dict, np.ndarray)):
+                try:
+                    # Attempt to get the first item yielded by the generator.
+                    # This assumes the generator yields the audio data (np.ndarray) directly as its first item.
+                    # If KPipeline yields multiple items or a structured object, this needs adjustment.
+                    audio_data_candidate = next(iter(generator_output))
+
+                    if isinstance(audio_data_candidate, np.ndarray):
+                        audio_data = audio_data_candidate
+                    # Handling cases where the generator might yield a tuple/list containing the ndarray
+                    elif isinstance(audio_data_candidate, (list, tuple)) and len(audio_data_candidate) > 0:
+                        # Common pattern: TTS might yield (audio_array, sample_rate) or similar.
+                        # We'll search for the ndarray, prioritizing the first one found.
+                        # Or, if the original debug output is a hint, it might be the last element.
+                        # Let's assume for now it might be the last element if it's a list/tuple.
+                        if isinstance(audio_data_candidate[-1], np.ndarray):
+                            audio_data = audio_data_candidate[-1]
+                        else: # Check if any element is an ndarray
+                            for item in audio_data_candidate:
+                                if isinstance(item, np.ndarray):
+                                    audio_data = item
+                                    print(f"DEBUG: Found ndarray in yielded tuple/list at index {audio_data_candidate.index(item)}")
+                                    break
+                            if audio_data is None:
+                                print(f"Warning: Generator yielded a list/tuple, but no np.ndarray found within: {audio_data_candidate}")
+                    else:
+                        print(f"Warning: Generator yielded an item of type {type(audio_data_candidate)}, not np.ndarray or a collection containing one.")
+                        audio_data = None
+
+                except StopIteration:
+                    print("Warning: Generator from pipeline was empty.")
+                    audio_data = None
+                except Exception as e_gen:
+                    print(f"Error consuming generator from pipeline: {e_gen}")
+                    audio_data = None
+            elif isinstance(generator_output, np.ndarray): # If pipeline directly returns an ndarray
+                audio_data = generator_output
             else:
-                audio_data = None # Or handle as an error/unexpected type
+                print(f"Warning: Pipeline returned an unexpected type: {type(generator_output)}. Expected a generator or np.ndarray.")
+                audio_data = None
 
             if audio_data is not None and isinstance(audio_data, np.ndarray) and audio_data.size > 0:
                 all_audio_segments.append(audio_data)
