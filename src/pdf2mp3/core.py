@@ -6,8 +6,7 @@ import soundfile as sf
 import numpy as np
 from tqdm import tqdm
 import re
-import os
-import sys # Added for stderr
+import sys  # Added for stderr
 from pathlib import Path
 
 
@@ -27,20 +26,25 @@ def extract_text_from_pdf(pdf_path: Path, split_patterns: str) -> tuple[str, ...
     try:
         with open(pdf_path, "rb") as fh:
             pdf_reader = PyPDF2.PdfReader(fh)
-            if not pdf_reader.pages: # Handle empty or unreadable PDFs early
+            if not pdf_reader.pages:  # Handle empty or unreadable PDFs early
                 return tuple()
             for page in pdf_reader.pages:
                 page_text = page.extract_text()
-                if page_text: # Ensure page_text is not None
-                    text += page_text.strip() + "\\n" # Add newline between pages, strip individual page text
+                if page_text:  # Ensure page_text is not None
+                    text += (
+                        page_text.strip() + "\\n"
+                    )  # Add newline between pages, strip individual page text
     except FileNotFoundError:
         print(f"Error: PDF file not found at {pdf_path}", file=sys.stderr)
         return tuple()
     except PyPDF2.errors.PdfReadError as e:
         print(f"Error reading PDF file {pdf_path}: {e}", file=sys.stderr)
         return tuple()
-    except Exception as e: # Catch other potential errors during PDF processing
-        print(f"An unexpected error occurred while processing {pdf_path}: {e}", file=sys.stderr)
+    except Exception as e:  # Catch other potential errors during PDF processing
+        print(
+            f"An unexpected error occurred while processing {pdf_path}: {e}",
+            file=sys.stderr,
+        )
         return tuple()
 
     if not text.strip():
@@ -49,7 +53,10 @@ def extract_text_from_pdf(pdf_path: Path, split_patterns: str) -> tuple[str, ...
     # split_patterns is now a required argument, so we always split.
     compiled_pat = re.compile(split_patterns)
     chunks = tuple(c.strip() for c in compiled_pat.split(text) if c.strip())
-    return chunks if chunks else tuple() # Ensure not to return (None,) or similar if all chunks are empty
+    return (
+        chunks if chunks else tuple()
+    )  # Ensure not to return (None,) or similar if all chunks are empty
+
 
 def get_device(device_str: str | None = None) -> str:
     """
@@ -69,10 +76,14 @@ def get_device(device_str: str | None = None) -> str:
     """
     if device_str:
         if device_str.startswith("cuda") and not torch.cuda.is_available():
-            print(f"Warning: CUDA device '{device_str}' requested but not available. Falling back to CPU.", file=sys.stderr)
+            print(
+                f"Warning: CUDA device '{device_str}' requested but not available. Falling back to CPU.",
+                file=sys.stderr,
+            )
             return "cpu"
         return device_str
     return "cuda" if torch.cuda.is_available() else "cpu"
+
 
 def convert_pdf_to_mp3(
     pdf_path: Path,
@@ -80,7 +91,7 @@ def convert_pdf_to_mp3(
     lang: str = "b",  # Default to British English code
     voice: str = "bf_emma",
     speed: float = 0.8,
-    split_pattern: str = r'[.”]\s*\n',
+    split_pattern: str = r"[.”]\s*\n",
     bitrate_mode: str = "CONSTANT",
     compression_level: float = 0.5,
     device: str | None = None,
@@ -116,7 +127,9 @@ def convert_pdf_to_mp3(
         overwrite: If True, overwrites the output MP3 if it already exists.
     """
     if output_mp3_path.exists() and not overwrite and not resume:
-        print(f"Error: Output file {output_mp3_path} already exists. Use --overwrite or --resume.")
+        print(
+            f"Error: Output file {output_mp3_path} already exists. Use --overwrite or --resume."
+        )
         return
 
     actual_device = get_device(device)
@@ -127,20 +140,26 @@ def convert_pdf_to_mp3(
     # Pass split_pattern to extract_text_from_pdf
     chunks = extract_text_from_pdf(pdf_path, split_pattern)
 
-    if not chunks: # If chunks is empty tuple
-        print("No text could be extracted or no text chunks to synthesize after splitting.")
+    if not chunks:  # If chunks is empty tuple
+        print(
+            "No text could be extracted or no text chunks to synthesize after splitting."
+        )
         return
 
     num_chunks = len(chunks)
     print(f"Text extracted and split into {num_chunks} chunks.")
 
     # 2. Initialize Kokoro TTS pipeline
-    print(f"Initializing Kokoro TTS with language code '{lang}', voice '{voice}' on device '{actual_device}'...")
+    print(
+        f"Initializing Kokoro TTS with language code '{lang}', voice '{voice}' on device '{actual_device}'..."
+    )
     try:
         pipeline = KPipeline(lang_code=lang, device=actual_device)
     except Exception as e:
         print(f"Error initializing Kokoro TTS pipeline: {e}")
-        print("Please ensure the language code is valid (see README.md) and the voice is supported.")
+        print(
+            "Please ensure the language code is valid (see README.md) and the voice is supported."
+        )
         return
 
     # 3. (Text splitting is now done in extract_text_from_pdf)
@@ -166,17 +185,18 @@ def convert_pdf_to_mp3(
                     print(f"Loaded existing chunk {i+1}/{num_chunks}")
                     start_chunk_index = i + 1
                 except Exception as e:
-                    print(f"Could not load chunk {chunk_file}: {e}. Will re-synthesize.")
+                    print(
+                        f"Could not load chunk {chunk_file}: {e}. Will re-synthesize."
+                    )
                     # Ensure loop continues from this chunk if it failed to load
                     start_chunk_index = i
-                    break # Stop loading further chunks if one is corrupt or unreadable
+                    break  # Stop loading further chunks if one is corrupt or unreadable
             else:
                 # First missing chunk, start synthesis from here
                 start_chunk_index = i
                 break
         if start_chunk_index > 0:
             print(f"Resuming synthesis from chunk {start_chunk_index + 1}/{num_chunks}")
-
 
     # 5. Synthesize audio for each chunk
     # We iterate through chunks to save intermediate results for resumability
@@ -187,15 +207,19 @@ def convert_pdf_to_mp3(
         initial=start_chunk_index,
         desc=progress_bar_desc,
         unit="chunk",
-        disable=not show_progress
+        disable=not show_progress,
     )
 
     for i, text_chunk in enumerate(chunks[start_chunk_index:], start=start_chunk_index):
         chunk_audio_file = tmp_dir / f"chunk_{i+1}.npy"
 
         # If resuming and chunk already processed, skip (it's already loaded)
-        if resume and i < start_chunk_index: # This condition ensures we only update pbar for already loaded segments.
-            pbar.update(1) # Should ideally be covered by initial pbar setting, but good for safety.
+        if (
+            resume and i < start_chunk_index
+        ):  # This condition ensures we only update pbar for already loaded segments.
+            pbar.update(
+                1
+            )  # Should ideally be covered by initial pbar setting, but good for safety.
             continue
 
         try:
@@ -207,9 +231,11 @@ def convert_pdf_to_mp3(
             )
             if audio_data is not None and len(audio_data) > 0:
                 all_audio_segments.append(audio_data)
-                np.save(chunk_audio_file, audio_data) # Save for potential resume
+                np.save(chunk_audio_file, audio_data)  # Save for potential resume
             else:
-                print(f"Warning: No audio generated for chunk {i+1}. Text: \"{text_chunk[:50]}...\"")
+                print(
+                    f'Warning: No audio generated for chunk {i+1}. Text: "{text_chunk[:50]}..."'
+                )
         except Exception as e:
             print(f"Error synthesizing chunk {i+1} ('{text_chunk[:50]}...'): {e}")
             # Decide whether to stop or continue (currently continues)
@@ -240,9 +266,11 @@ def convert_pdf_to_mp3(
             # to LAME VBR quality (0=best, 9=worst).
             # So, compression_level 0.0 -> LAME -V0
             # compression_level 1.0 -> LAME -V9
-            vbr_quality = int(round((1.0 - compression_level) * 9)) # Invert and scale
-            extra_opts = ['-V', str(vbr_quality)]
-            print(f"Using Variable Bitrate (VBR) with LAME quality setting -V {vbr_quality} (derived from compression_level {compression_level}).")
+            vbr_quality = int(round((1.0 - compression_level) * 9))  # Invert and scale
+            extra_opts = ["-V", str(vbr_quality)]
+            print(
+                f"Using Variable Bitrate (VBR) with LAME quality setting -V {vbr_quality} (derived from compression_level {compression_level})."
+            )
         else:  # CONSTANT bitrate mode
             # Map compression_level (0.0=best quality/highest bitrate, 1.0=smallest file/lowest bitrate)
             # to a CBR bitrate value, e.g., between 64k and 320k.
@@ -250,16 +278,20 @@ def convert_pdf_to_mp3(
             # compression_level 0.5 -> 192kbps (approx)
             # compression_level 1.0 -> 64kbps
             min_bitrate, max_bitrate = 64, 320
-            cbr_bitrate = int(max_bitrate - (compression_level * (max_bitrate - min_bitrate)))
-            extra_opts = ['-b:a', str(cbr_bitrate) + 'k'] # Example: '-b:a 192k'
-            print(f"Using Constant Bitrate (CBR) at approximately {cbr_bitrate}kbps (derived from compression_level {compression_level}).")
+            cbr_bitrate = int(
+                max_bitrate - (compression_level * (max_bitrate - min_bitrate))
+            )
+            extra_opts = ["-b:a", str(cbr_bitrate) + "k"]  # Example: '-b:a 192k'
+            print(
+                f"Using Constant Bitrate (CBR) at approximately {cbr_bitrate}kbps (derived from compression_level {compression_level})."
+            )
 
         sf.write(
             file=str(output_mp3_path),
             data=merged_audio,
             samplerate=24000,  # Kokoro's fixed sample rate
-            format='MP3',
-            extra_settings=extra_opts # Pass LAME-specific settings
+            format="MP3",
+            extra_settings=extra_opts,  # Pass LAME-specific settings
         )
         print(f"Successfully saved MP3 to {output_mp3_path}")
 
@@ -268,12 +300,14 @@ def convert_pdf_to_mp3(
         # as 'resume' is for input, not for preserving output intermediates indefinitely.
         print(f"Cleaning up temporary chunk files from {tmp_dir}...")
         for item in tmp_dir.iterdir():
-            if item.is_file(): # Ensure it's a file before unlinking
+            if item.is_file():  # Ensure it's a file before unlinking
                 item.unlink()
             try:
-                tmp_dir.rmdir() # Remove the directory itself if empty
+                tmp_dir.rmdir()  # Remove the directory itself if empty
             except OSError:
-                print(f"Warning: Could not remove temporary directory {tmp_dir}. It might not be empty.")
+                print(
+                    f"Warning: Could not remove temporary directory {tmp_dir}. It might not be empty."
+                )
 
     except Exception as e:
         print(f"Error saving MP3 file: {e}")
