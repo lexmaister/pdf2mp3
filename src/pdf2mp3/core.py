@@ -7,6 +7,7 @@ import numpy as np
 from tqdm import tqdm
 import re
 import os
+import sys # Added for stderr
 from pathlib import Path
 
 
@@ -31,15 +32,15 @@ def extract_text_from_pdf(pdf_path: Path, split_patterns: str) -> tuple[str, ...
             for page in pdf_reader.pages:
                 page_text = page.extract_text()
                 if page_text: # Ensure page_text is not None
-                    text += page_text + "\\n" # Add newline between pages
+                    text += page_text.strip() + "\\n" # Add newline between pages, strip individual page text
     except FileNotFoundError:
-        print(f"Error: PDF file not found at {pdf_path}")
+        print(f"Error: PDF file not found at {pdf_path}", file=sys.stderr)
         return tuple()
     except PyPDF2.errors.PdfReadError as e:
-        print(f"Error reading PDF file {pdf_path}: {e}")
+        print(f"Error reading PDF file {pdf_path}: {e}", file=sys.stderr)
         return tuple()
     except Exception as e: # Catch other potential errors during PDF processing
-        print(f"An unexpected error occurred while processing {pdf_path}: {e}")
+        print(f"An unexpected error occurred while processing {pdf_path}: {e}", file=sys.stderr)
         return tuple()
 
     if not text.strip():
@@ -68,7 +69,7 @@ def get_device(device_str: str | None = None) -> str:
     """
     if device_str:
         if device_str.startswith("cuda") and not torch.cuda.is_available():
-            print(f"Warning: CUDA device '{device_str}' requested but not available. Falling back to CPU.")
+            print(f"Warning: CUDA device '{device_str}' requested but not available. Falling back to CPU.", file=sys.stderr)
             return "cpu"
         return device_str
     return "cuda" if torch.cuda.is_available() else "cpu"
