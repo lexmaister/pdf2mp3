@@ -31,3 +31,6 @@ dependencies = [
 
 [project.scripts]
 pdf2mp3 = "pdf2mp3.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -284,14 +284,12 @@ class TestConvertPdfToMp3:
         mock_pipeline_instance.assert_any_call("chunk1", voice="test_voice", speed=1.0)
         mock_pipeline_instance.assert_any_call("chunk2", voice="test_voice", speed=1.0)
 
-        # Check that tmp_dir was created (default name)
-        expected_tmp_dir = Path(f".{output_mp3.stem}_chunks")
-        assert expected_tmp_dir.exists()
-        assert expected_tmp_dir.is_dir()
-
-        # Check that chunk files were saved
-        assert (expected_tmp_dir / "chunk_1.npy").exists()
-        assert (expected_tmp_dir / "chunk_2.npy").exists()
+        # Temporary directory and chunk file checks are removed.
+        # expected_tmp_dir = Path(f".{output_mp3.stem}_chunks")
+        # assert expected_tmp_dir.exists()
+        # assert expected_tmp_dir.is_dir()
+        # assert (expected_tmp_dir / "chunk_1.npy").exists()
+        # assert (expected_tmp_dir / "chunk_2.npy").exists()
 
         mock_sf_write.assert_called_once()
         args, kwargs = mock_sf_write.call_args
@@ -301,9 +299,7 @@ class TestConvertPdfToMp3:
         # Check if audio data is merged (simple check for concatenated length)
         assert len(kwargs['data']) == len(mock_pipeline_instance.return_value[3]) * 2
 
-        # Cleanup tmp dir
-        for item in expected_tmp_dir.iterdir(): item.unlink()
-        expected_tmp_dir.rmdir()
+        # Cleanup of tmp_dir is removed.
 
         captured = capsys.readouterr()
         assert "Extracting text" in captured.out
@@ -358,16 +354,18 @@ class TestConvertPdfToMp3:
         mock_kpipeline_class.assert_not_called()
         assert not output_mp3.exists()
 
-    def test_output_exists_no_overwrite_no_resume(self, dummy_pdf_path, output_dir, capsys):
-        """TC6: Output file already exists, overwrite=False, resume=False."""
+    def test_output_exists_no_overwrite(self, dummy_pdf_path, output_dir, capsys): # Renamed test
+        """TC6: Output file already exists, overwrite=False.""" # Updated docstring
         output_mp3 = output_dir / "existing_output.mp3"
         output_mp3.touch() # Create dummy existing file
 
-        convert_pdf_to_mp3(dummy_pdf_path, output_mp3, overwrite=False, resume=False, show_progress=False)
+        # Call without resume=False as it's no longer a parameter
+        convert_pdf_to_mp3(dummy_pdf_path, output_mp3, overwrite=False, show_progress=False)
 
         captured = capsys.readouterr()
-        assert f"Error: Output file {output_mp3} already exists. Use --overwrite or --resume." in captured.out
-        # Ensure it doesn't proceed to text extraction if file exists and no overwrite/resume
+        # Updated error message check
+        assert f"Error: Output file {output_mp3} already exists. Use --overwrite." in captured.out
+        # Ensure it doesn't proceed to text extraction
         assert "Extracting text from" not in captured.out
 
     def test_output_exists_overwrite_true(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker, capsys):
@@ -382,152 +380,11 @@ class TestConvertPdfToMp3:
         assert f"Error: Output file {output_mp3} already exists" not in captured.out
         mock_sf_write.assert_called_once() # Should proceed to write
 
-    def test_tmp_dir_creation_and_cleanup(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker):
-        """TC9 & part of TC1: tmp_dir is created and cleaned up."""
-        output_mp3 = output_dir / "tmp_test.mp3"
-        custom_tmp_dir = output_dir / "custom_temp_chunks" # Test with a custom tmp_dir
-
-        mocker.patch('pdf2mp3.core.extract_text_from_pdf', return_value=("text",))
-
-        convert_pdf_to_mp3(dummy_pdf_path, output_mp3, tmp_dir=custom_tmp_dir, show_progress=False)
-
-        assert custom_tmp_dir.exists()
-        assert (custom_tmp_dir / "chunk_1.npy").exists()
-        mock_sf_write.assert_called_once() # Ensure process completed
-
-        # After successful completion, tmp_dir and its contents should be gone
-        assert not (custom_tmp_dir / "chunk_1.npy").exists()
-        assert not custom_tmp_dir.exists()
-
-    def test_resume_no_existing_chunks(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker, capsys):
-        """TC10: resume=True, but no chunks in tmp_dir."""
-        output_mp3 = output_dir / "resume_none.mp3"
-        tmp_d = Path(f".{output_mp3.stem}_chunks")
-        if tmp_d.exists(): # ensure clean state
-            for item in tmp_d.iterdir(): item.unlink()
-            tmp_d.rmdir()
-
-        mocker.patch('pdf2mp3.core.extract_text_from_pdf', return_value=("chunkA", "chunkB"))
-        _, mock_pipeline_instance = mock_kpipeline
-
-        convert_pdf_to_mp3(dummy_pdf_path, output_mp3, resume=True, show_progress=False)
-
-        captured = capsys.readouterr()
-        assert "Attempting to resume" in captured.out
-        # Should not print "Loaded existing chunk"
-        assert "Loaded existing chunk" not in captured.out
-        assert mock_pipeline_instance.call_count == 2 # Synthesizes all chunks
-        mock_sf_write.assert_called_once()
-
-        if tmp_d.exists(): # cleanup
-            for item in tmp_d.iterdir(): item.unlink()
-            tmp_d.rmdir()
-
-    def test_resume_some_existing_chunks(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker, capsys):
-        """TC11: resume=True, some chunks exist."""
-        output_mp3 = output_dir / "resume_some.mp3"
-        tmp_d = Path(f".{output_mp3.stem}_chunks")
-        tmp_d.mkdir(exist_ok=True)
-
-        # Create a dummy chunk_1.npy
-        dummy_audio_data = mock_kpipeline[1].return_value[3] # Get dummy audio from mock
-        np.save(tmp_d / "chunk_1.npy", dummy_audio_data)
-
-        mocker.patch('pdf2mp3.core.extract_text_from_pdf', return_value=("text for chunk1", "text for chunk2", "text for chunk3"))
-        mock_kpipeline_class, mock_pipeline_instance = mock_kpipeline
-
-        # Mock np.load to check it's called for the existing chunk
-        mock_np_load = mocker.patch('numpy.load', return_value=dummy_audio_data)
-
-        convert_pdf_to_mp3(dummy_pdf_path, output_mp3, resume=True, show_progress=False)
-
-        captured = capsys.readouterr()
-        assert "Attempting to resume" in captured.out
-        assert "Loaded existing chunk 1/3" in captured.out # Or similar, check tqdm output
-
-        mock_np_load.assert_called_once_with(tmp_d / "chunk_1.npy")
-
-        # TTS should be called only for chunk2 and chunk3
-        assert mock_pipeline_instance.call_count == 2
-        mock_pipeline_instance.assert_any_call("text for chunk2", voice="bf_emma", speed=0.8) # default voice/speed
-        mock_pipeline_instance.assert_any_call("text for chunk3", voice="bf_emma", speed=0.8)
-
-        mock_sf_write.assert_called_once()
-        # Verify all 3 segments in final audio (1 loaded, 2 synthesized)
-        _, write_kwargs = mock_sf_write.call_args
-        assert len(write_kwargs['data']) == len(dummy_audio_data) * 3
-
-
-        if tmp_d.exists(): # cleanup
-            for item in tmp_d.iterdir(): item.unlink(missing_ok=True)
-            tmp_d.rmdir()
-
-    def test_resume_all_existing_chunks(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker, capsys):
-        """TC12: resume=True, all chunks exist."""
-        output_mp3 = output_dir / "resume_all.mp3"
-        tmp_d = Path(f".{output_mp3.stem}_chunks")
-        tmp_d.mkdir(exist_ok=True)
-
-        dummy_audio_data = mock_kpipeline[1].return_value[3]
-        np.save(tmp_d / "chunk_1.npy", dummy_audio_data)
-        np.save(tmp_d / "chunk_2.npy", dummy_audio_data)
-
-        mocker.patch('pdf2mp3.core.extract_text_from_pdf', return_value=("chunkX", "chunkY"))
-        mock_kpipeline_class, mock_pipeline_instance = mock_kpipeline
-        mock_np_load = mocker.patch('numpy.load', return_value=dummy_audio_data)
-
-        convert_pdf_to_mp3(dummy_pdf_path, output_mp3, resume=True, show_progress=False)
-
-        captured = capsys.readouterr()
-        assert "Loaded existing chunk 1/2" in captured.out
-        assert "Loaded existing chunk 2/2" in captured.out
-
-        assert mock_np_load.call_count == 2
-        mock_pipeline_instance.assert_not_called() # No synthesis needed
-        mock_sf_write.assert_called_once()
-        _, write_kwargs = mock_sf_write.call_args
-        assert len(write_kwargs['data']) == len(dummy_audio_data) * 2
-
-        if tmp_d.exists(): # cleanup
-            for item in tmp_d.iterdir(): item.unlink(missing_ok=True)
-            tmp_d.rmdir()
-
-    def test_resume_corrupted_chunk(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker, capsys):
-        """TC13: resume=True, a chunk file is corrupted."""
-        output_mp3 = output_dir / "resume_corrupt.mp3"
-        tmp_d = Path(f".{output_mp3.stem}_chunks")
-        tmp_d.mkdir(exist_ok=True)
-
-        dummy_audio_data = mock_kpipeline[1].return_value[3]
-        np.save(tmp_d / "chunk_1.npy", dummy_audio_data) # Good chunk
-        # Corrupted chunk_2.npy (e.g. by np.load raising error)
-
-        mocker.patch('pdf2mp3.core.extract_text_from_pdf', return_value=("text1", "text2_corrupt", "text3"))
-        mock_kpipeline_class, mock_pipeline_instance = mock_kpipeline
-
-        def np_load_side_effect(path):
-            if "chunk_2.npy" in str(path):
-                raise ValueError("Mocked np.load error for corrupted chunk")
-            return dummy_audio_data
-        mock_np_load = mocker.patch('numpy.load', side_effect=np_load_side_effect)
-
-        convert_pdf_to_mp3(dummy_pdf_path, output_mp3, resume=True, show_progress=False)
-
-        captured = capsys.readouterr()
-        assert f"Could not load chunk {tmp_d / 'chunk_2.npy'}" in captured.out
-
-        # Should load chunk1, fail on chunk2, then synthesize chunk2 and chunk3
-        mock_np_load.assert_any_call(tmp_d / "chunk_1.npy")
-        mock_np_load.assert_any_call(tmp_d / "chunk_2.npy")
-
-        assert mock_pipeline_instance.call_count == 2 # For text2_corrupt and text3
-        mock_pipeline_instance.assert_any_call("text2_corrupt", voice="bf_emma", speed=0.8)
-        mock_pipeline_instance.assert_any_call("text3", voice="bf_emma", speed=0.8)
-        mock_sf_write.assert_called_once()
-
-        if tmp_d.exists(): # cleanup
-            for item in tmp_d.iterdir(): item.unlink(missing_ok=True)
-            tmp_d.rmdir()
+    # Removed test_tmp_dir_creation_and_cleanup
+    # Removed test_resume_no_existing_chunks
+    # Removed test_resume_some_existing_chunks
+    # Removed test_resume_all_existing_chunks
+    # Removed test_resume_corrupted_chunk
 
     def test_kpipeline_parameters_forwarded(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker):
         """TC14: lang, voice, speed parameters are correctly passed to KPipeline."""
@@ -548,9 +405,7 @@ class TestConvertPdfToMp3:
         mock_kpipeline_class.assert_called_once_with(lang_code=custom_lang, device=custom_device)
         mock_pipeline_instance.assert_called_once_with("some text", voice=custom_voice, speed=custom_speed)
 
-        if Path(f".{output_mp3.stem}_chunks").exists(): # cleanup
-            for item in Path(f".{output_mp3.stem}_chunks").iterdir(): item.unlink(missing_ok=True)
-            Path(f".{output_mp3.stem}_chunks").rmdir()
+        # Removed cleanup for non-existent tmp_dir
 
 
     @pytest.mark.parametrize("bitrate_mode, compression_level, expected_vbr_quality, expected_cbr_bitrate_approx_str", [
@@ -586,9 +441,7 @@ class TestConvertPdfToMp3:
             assert extra_opts == ["-b:a", str(expected_cbr_val) + "k"]
             assert f"Using Constant Bitrate (CBR) at approximately {expected_cbr_val}kbps" in captured.out
 
-        if Path(f".{output_mp3.stem}_chunks").exists(): # cleanup
-            for item in Path(f".{output_mp3.stem}_chunks").iterdir(): item.unlink(missing_ok=True)
-            Path(f".{output_mp3.stem}_chunks").rmdir()
+        # Removed cleanup for non-existent tmp_dir
 
 
     def test_show_progress_false(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker):
@@ -603,9 +456,7 @@ class TestConvertPdfToMp3:
         _, tqdm_kwargs = mock_tqdm.call_args
         assert tqdm_kwargs.get('disable') is True
 
-        if Path(f".{output_mp3.stem}_chunks").exists(): # cleanup
-            for item in Path(f".{output_mp3.stem}_chunks").iterdir(): item.unlink(missing_ok=True)
-            Path(f".{output_mp3.stem}_chunks").rmdir()
+        # Removed cleanup for non-existent tmp_dir
 
     def test_show_progress_true(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker):
         """Counterpart to TC16: tqdm is enabled when show_progress=True (default)."""
@@ -620,9 +471,7 @@ class TestConvertPdfToMp3:
         assert tqdm_kwargs.get('disable') is False # Default for tqdm is False if not specified, or our func sets it
                                                  # based on show_progress
 
-        if Path(f".{output_mp3.stem}_chunks").exists(): # cleanup
-            for item in Path(f".{output_mp3.stem}_chunks").iterdir(): item.unlink(missing_ok=True)
-            Path(f".{output_mp3.stem}_chunks").rmdir()
+        # Removed cleanup for non-existent tmp_dir
 
 
     def test_device_forwarding_to_kpipeline(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker, capsys):
@@ -656,9 +505,7 @@ class TestConvertPdfToMp3:
             captured = capsys.readouterr()
             assert "Using device: cpu" in captured.out
 
-        if Path(f".{output_mp3.stem}_chunks").exists(): # cleanup
-            for item in Path(f".{output_mp3.stem}_chunks").iterdir(): item.unlink(missing_ok=True)
-            Path(f".{output_mp3.stem}_chunks").rmdir()
+        # Removed cleanup for non-existent tmp_dir
 
     def test_kpipeline_initialization_failure(self, dummy_pdf_path, output_dir, mock_kpipeline, mocker, capsys):
         """Test behavior when KPipeline initialization fails."""
@@ -674,15 +521,7 @@ class TestConvertPdfToMp3:
         assert "Error initializing Kokoro TTS pipeline: Mocked KPipeline init error" in captured.out
         assert not output_mp3.exists() # Should not create output if TTS fails to init
 
-        # tmp_dir might be created before KPipeline init, ensure it's cleaned if empty
-        expected_tmp_dir = Path(f".{output_mp3.stem}_chunks")
-        if expected_tmp_dir.exists():
-            # Depending on exact failure point, it might or might not be cleaned.
-            # For now, let's assume it might exist but be empty.
-            # If it had .npy files, that would be an issue.
-            assert len(list(expected_tmp_dir.glob('*.npy'))) == 0
-            for item in expected_tmp_dir.iterdir(): item.unlink(missing_ok=True) # clean up if any other file
-            expected_tmp_dir.rmdir()
+        # Removed checks and cleanup for non-existent tmp_dir
 
 
     def test_synthesis_error_for_one_chunk(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker, capsys):
@@ -705,11 +544,11 @@ class TestConvertPdfToMp3:
         captured = capsys.readouterr()
         assert "Error synthesizing chunk 2 ('bad_chunk...'): Mocked synthesis error" in captured.out
 
-        # Check that good chunks were processed and saved
-        tmp_d = Path(f".{output_mp3.stem}_chunks")
-        assert (tmp_d / "chunk_1.npy").exists()
-        assert not (tmp_d / "chunk_2.npy").exists() # Failed one shouldn't be saved
-        assert (tmp_d / "chunk_3.npy").exists()
+        # Chunk file saving checks are removed.
+        # tmp_d = Path(f".{output_mp3.stem}_chunks")
+        # assert (tmp_d / "chunk_1.npy").exists()
+        # assert not (tmp_d / "chunk_2.npy").exists() # Failed one shouldn't be saved
+        # assert (tmp_d / "chunk_3.npy").exists()
 
         # sf.write should still be called with the successfully synthesized chunks
         mock_sf_write.assert_called_once()
@@ -717,9 +556,7 @@ class TestConvertPdfToMp3:
         # Expected audio data from 2 successful chunks
         assert len(write_kwargs['data']) == len(dummy_audio_data) * 2
 
-        if tmp_d.exists(): # cleanup
-            for item in tmp_d.iterdir(): item.unlink(missing_ok=True)
-            tmp_d.rmdir()
+        # Removed cleanup for non-existent tmp_dir
 
     def test_no_audio_generated_for_chunk_warning(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker, capsys):
         """Test warning when a chunk results in no audio data from TTS."""
@@ -746,10 +583,7 @@ class TestConvertPdfToMp3:
         _, write_kwargs = mock_sf_write.call_args
         assert len(write_kwargs['data']) == len(dummy_audio_data) # Only first chunk's data
 
-        tmp_d = Path(f".{output_mp3.stem}_chunks")
-        if tmp_d.exists(): # cleanup
-            for item in tmp_d.iterdir(): item.unlink(missing_ok=True)
-            tmp_d.rmdir()
+        # Removed cleanup for non-existent tmp_dir
 
     def test_all_chunks_fail_synthesis_or_yield_no_audio(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker, capsys):
         """Test scenario where no audio segments are usable for merging."""
@@ -774,12 +608,7 @@ class TestConvertPdfToMp3:
         mock_sf_write.assert_not_called() # Should not attempt to write MP3
         assert not output_mp3.exists()
 
-        tmp_d = Path(f".{output_mp3.stem}_chunks")
-        if tmp_d.exists(): # cleanup
-            # Chunks might be saved as empty .npy files if TTS returned empty, not error
-            # Or not saved if TTS errored. Let's ensure cleanup.
-            for item in tmp_d.iterdir(): item.unlink(missing_ok=True)
-            tmp_d.rmdir()
+        # Removed cleanup for non-existent tmp_dir
 
     def test_split_pattern_forwarded_to_extract_text(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker):
         """Test that a custom split_pattern is passed to extract_text_from_pdf."""
@@ -793,44 +622,42 @@ class TestConvertPdfToMp3:
         mock_extract.assert_called_once_with(dummy_pdf_path, custom_split_pattern)
         mock_sf_write.assert_called_once() # Ensure it ran through
 
-        tmp_d = Path(f".{output_mp3.stem}_chunks")
-        if tmp_d.exists():
-            for item in tmp_d.iterdir(): item.unlink(missing_ok=True)
-            tmp_d.rmdir()
+        # Removed cleanup for non-existent tmp_dir
 
     # Add a test for invalid output path leading to tmp_dir creation failure if not absolute
-    def test_invalid_output_path_tmp_dir_creation_fail(self, dummy_pdf_path, tmp_path, mock_kpipeline, mocker, capsys):
-        """TC8 related: Test when tmp_dir (derived from output_mp3_path) cannot be created."""
+    # This test (test_invalid_output_path_tmp_dir_creation_fail) is no longer relevant as tmp_dirs for chunks are not created.
+    # def test_invalid_output_path_tmp_dir_creation_fail(self, dummy_pdf_path, tmp_path, mock_kpipeline, mocker, capsys):
+    #     """TC8 related: Test when tmp_dir (derived from output_mp3_path) cannot be created."""
         # This output path is problematic because its parent doesn't exist.
         # The default tmp_dir is relative to this, e.g., .nonexistent_dir/output_chunks
         # which Path.mkdir() cannot create if "nonexistent_dir" isn't there.
-        invalid_output_mp3 = tmp_path / "nonexistent_dir" / "output.mp3"
-
-        mocker.patch('pdf2mp3.core.extract_text_from_pdf', return_value=("text",))
-        mock_kpipeline_class, _ = mock_kpipeline
-
-        # We expect an OSError when trying to create the tmp_dir
-        # For this, we need to let tmp_dir.mkdir() be called.
-        # The function should ideally catch this and exit or warn.
-        # Current code does not explicitly catch tmp_dir.mkdir() failure.
-        # It might proceed and fail later, or raise OSError.
-        # Let's mock Path.mkdir to simulate the failure more directly for the tmp_dir.
-
-        original_path_mkdir = Path.mkdir
-        def mock_mkdir(self, parents=False, exist_ok=False):
-            if "chunks" in self.name: # Target the chunk directory
-                 raise OSError("Mocked: Cannot create directory")
-            return original_path_mkdir(self, parents=parents, exist_ok=exist_ok)
-
-        with mocker.patch.object(Path, 'mkdir', side_effect=mock_mkdir, autospec=True):
-            with pytest.raises(OSError, match="Mocked: Cannot create directory"): # Or check capsys if it's caught
-                convert_pdf_to_mp3(dummy_pdf_path, invalid_output_mp3, show_progress=False)
-
-        # If the function were to catch it and print:
-        # convert_pdf_to_mp3(dummy_pdf_path, invalid_output_mp3, show_progress=False)
-        # captured = capsys.readouterr()
-        # assert "Error creating temporary directory" in captured.err
-        # mock_kpipeline_class.assert_not_called() # Should fail before TTS
+    #    invalid_output_mp3 = tmp_path / "nonexistent_dir" / "output.mp3"
+    #
+    #    mocker.patch('pdf2mp3.core.extract_text_from_pdf', return_value=("text",))
+    #    mock_kpipeline_class, _ = mock_kpipeline
+    #
+    #    # We expect an OSError when trying to create the tmp_dir
+    #    # For this, we need to let tmp_dir.mkdir() be called.
+    #    # The function should ideally catch this and exit or warn.
+    #    # Current code does not explicitly catch tmp_dir.mkdir() failure.
+    #    # It might proceed and fail later, or raise OSError.
+    #    # Let's mock Path.mkdir to simulate the failure more directly for the tmp_dir.
+    #
+    #    original_path_mkdir = Path.mkdir
+    #    def mock_mkdir(self, parents=False, exist_ok=False):
+    #        if "chunks" in self.name: # Target the chunk directory
+    #             raise OSError("Mocked: Cannot create directory")
+    #        return original_path_mkdir(self, parents=parents, exist_ok=exist_ok)
+    #
+    #    with mocker.patch.object(Path, 'mkdir', side_effect=mock_mkdir, autospec=True):
+    #        with pytest.raises(OSError, match="Mocked: Cannot create directory"): # Or check capsys if it's caught
+    #            convert_pdf_to_mp3(dummy_pdf_path, invalid_output_mp3, show_progress=False)
+    #
+    #    # If the function were to catch it and print:
+    #    # convert_pdf_to_mp3(dummy_pdf_path, invalid_output_mp3, show_progress=False)
+    #    # captured = capsys.readouterr()
+    #    # assert "Error creating temporary directory" in captured.err
+    #    # mock_kpipeline_class.assert_not_called() # Should fail before TTS
 
     # Test for sf.write failure
     def test_soundfile_write_failure(self, dummy_pdf_path, output_dir, mock_kpipeline, mock_sf_write, mocker, capsys):
@@ -843,10 +670,6 @@ class TestConvertPdfToMp3:
         captured = capsys.readouterr()
         assert "Error saving MP3 file: Mocked soundfile.write error" in captured.out
 
-        # Check if tmp_dir cleanup was still attempted or if it was left
-        # Current code has cleanup inside the try block of sf.write, so it might be skipped.
-        tmp_d = Path(f".{output_mp3.stem}_chunks")
-        assert tmp_d.exists() # Cleanup is skipped if sf.write fails
-        if tmp_d.exists(): # cleanup for test
-            for item in tmp_d.iterdir(): item.unlink(missing_ok=True)
-            tmp_d.rmdir()
+        # Removed checks and cleanup for non-existent tmp_dir
+        # tmp_d = Path(f".{output_mp3.stem}_chunks")
+        # assert tmp_d.exists() # This would fail as tmp_d is not created

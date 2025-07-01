@@ -9,7 +9,7 @@ Convert a PDF e-book to a single MP3 with Kokoro TTS
 * Custom Voice and Speech Speed: Choose different voices and set custom speaking rates.
 * Progress Feedback: Displays a progress bar for chunked synthesis.
 * Direct Export: Saves results as an MP3 with proper formatting and bit rate.
-* Chunked Processing: Splits the text into manageable chunks to optimize synthesis and tracking.
+* Chunked Processing: Splits the text into manageable chunks for TTS processing, optimizing memory usage.
 * Device-aware: Automatically runs on GPU if available, otherwise uses CPU.
 
 ## Installation
@@ -32,6 +32,12 @@ python -m venv .venv
 .\.venv\Scripts\activate
 pip install .
 ```
+
+For development (if you plan to modify the source code), you might prefer an editable install:
+```bash
+pip install -e .
+```
+This allows your changes in the `src` directory to be reflected immediately without reinstalling.
 
 ### Requirements
 * Python 3.10+
@@ -115,9 +121,25 @@ CORE SYNTHESIS OPTIONS
                              Default: 'b' (British English)
   -v, --voice TEXT           Voice preset. Refer to README.md for available voices.
                              Default: bf_emma
-  -s, --speed FLOAT          Speaking-rate multiplier (0.5 – 2.0).  
+  -s, --speed FLOAT          Speaking-rate multiplier (0.5 – 2.0).
                              Default: 0.8
-... (other options) ...
+  --split-pattern TEXT       Regular-expression pattern used to split extracted text from the PDF
+                             into smaller chunks for TTS processing.
+                             Default: '[.”]\\s*\\n'
+  --bitrate TEXT             MP3 bitrate control mode.
+                               CONSTANT – fixed (CBR) [default]
+                               VARIABLE – VBR (average bitrate)
+                             Default: CONSTANT
+  --compression FLOAT        Compression level (0.0 to 1.0).
+                             Higher values generally result in smaller file sizes.
+                             Lower values aim for better fidelity.
+                             Default: 0.5
+  --device TEXT              Compute device: cpu, cuda, cuda:0, …
+                             Auto-detected if omitted.
+  --overwrite                Replace an existing OUTPUT_MP3.
+  --no-progress              Disable the live progress bar.
+  --version                  Show program's version number and exit.
+  -h, --help                 Show this help message and exit.
 ```
 
 ## Warnings & Notes

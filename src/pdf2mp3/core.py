@@ -95,8 +95,8 @@ def convert_pdf_to_mp3(
     bitrate_mode: str = "CONSTANT",
     compression_level: float = 0.5,
     device: str | None = None,
-    tmp_dir: Path | None = None,
-    resume: bool = False,
+    # tmp_dir: Path | None = None, # Removed
+    # resume: bool = False, # Removed
     show_progress: bool = True,
     overwrite: bool = False,
 ):
@@ -107,7 +107,7 @@ def convert_pdf_to_mp3(
     1. Extracting text from the PDF.
     2. Initializing the Kokoro TTS pipeline.
     3. Splitting the text into manageable chunks.
-    4. Synthesizing audio for each chunk, with optional resume capability.
+    4. Synthesizing audio for each chunk.
     5. Merging audio chunks and saving as an MP3 file.
 
     Args:
@@ -120,15 +120,12 @@ def convert_pdf_to_mp3(
         bitrate_mode: MP3 bitrate mode ('CONSTANT' or 'VARIABLE').
         compression_level: Compression level (0.0-1.0) influencing bitrate/quality.
         device: Compute device ('cpu', 'cuda', etc.); auto-detected if None.
-        tmp_dir: Directory for temporary chunk storage; defaults to a hidden
-                 folder next to the output MP3.
-        resume: If True, tries to resume from previously saved chunks.
         show_progress: If True, displays a progress bar during synthesis.
         overwrite: If True, overwrites the output MP3 if it already exists.
     """
-    if output_mp3_path.exists() and not overwrite and not resume:
+    if output_mp3_path.exists() and not overwrite: # Removed 'and not resume'
         print(
-            f"Error: Output file {output_mp3_path} already exists. Use --overwrite or --resume."
+            f"Error: Output file {output_mp3_path} already exists. Use --overwrite." # Removed 'or --resume'
         )
         return
 
@@ -164,135 +161,107 @@ def convert_pdf_to_mp3(
 
     # 3. (Text splitting is now done in extract_text_from_pdf)
 
-    # 4. Handle temporary directory and resume functionality
-    if tmp_dir is None:
-        tmp_dir = Path(f".{output_mp3_path.stem}_chunks")
-    tmp_dir.mkdir(parents=True, exist_ok=True)
-    print(f"Temporary chunk files will be stored in: {tmp_dir}")
-
+    # 4. Initialize list to store audio segments
     all_audio_segments = []
-    start_chunk_index = 0
-
-    if resume:
-        print("Attempting to resume from previously saved chunks...")
-        # Load existing audio segments
-        for i in range(num_chunks):
-            chunk_file = tmp_dir / f"chunk_{i+1}.npy"
-            if chunk_file.exists():
-                try:
-                    audio_segment = np.load(chunk_file)
-                    all_audio_segments.append(audio_segment)
-                    print(f"Loaded existing chunk {i+1}/{num_chunks}")
-                    start_chunk_index = i + 1
-                except Exception as e:
-                    print(
-                        f"Could not load chunk {chunk_file}: {e}. Will re-synthesize."
-                    )
-                    # Ensure loop continues from this chunk if it failed to load
-                    start_chunk_index = i
-                    break  # Stop loading further chunks if one is corrupt or unreadable
-            else:
-                # First missing chunk, start synthesis from here
-                start_chunk_index = i
-                break
-        if start_chunk_index > 0:
-            print(f"Resuming synthesis from chunk {start_chunk_index + 1}/{num_chunks}")
+    # start_chunk_index is no longer needed as we don't resume.
 
     # 5. Synthesize audio for each chunk
-    # We iterate through chunks to save intermediate results for resumability
-    # and to provide progress updates.
     progress_bar_desc = "Synthesizing audio chunks"
+    # Initialize tqdm with total number of chunks.
+    # No 'initial' argument as we always start from the beginning.
     pbar = tqdm(
         total=num_chunks,
-        initial=start_chunk_index,
         desc=progress_bar_desc,
         unit="chunk",
         disable=not show_progress,
     )
 
-    for i, text_chunk in enumerate(chunks[start_chunk_index:], start=start_chunk_index):
-        chunk_audio_file = tmp_dir / f"chunk_{i+1}.npy"
-
-        # If resuming and chunk already processed, skip (it's already loaded)
-        if (
-            resume and i < start_chunk_index
-        ):  # This condition ensures we only update pbar for already loaded segments.
-            pbar.update(
-                1
-            )  # Should ideally be covered by initial pbar setting, but good for safety.
-            continue
+    # Iterate through all chunks.
+    for i, text_chunk in enumerate(chunks):
+        # chunk_audio_file is no longer needed.
+        # Resume logic is removed.
 
         try:
-            # Kokoro pipeline call and handling of its return values.
-            # The structure of returned_values was previously causing unpacking errors.
-            # We now capture all returned values and attempt to extract audio_data.
-            # KPipeline returns a generator, so we need to iterate or call next().
+            # Kokoro pipeline call.
+            # The pipeline is called with individual text_chunk.
+            # The example `pipeline(text, split_pattern=...)` is for when pipeline handles splitting.
+            # Here, text is already pre-split into `chunks`.
             generator_output = pipeline(
                 text_chunk,
                 voice=voice,
                 speed=speed,
+                # No split_pattern here as text_chunk is already a small piece of text
             )
-            print(f"DEBUG: pipeline returned: {generator_output}")
+            # print(f"DEBUG: pipeline returned for chunk {i+1}: {generator_output}") # Optional debug
 
             audio_data = None
-            # Check if it's an iterator/generator and not a type we'd misinterpret (like string or ndarray itself)
+            # KPipeline returns a generator. We need to iterate through its output.
+            # The example suggests it yields (*_, audio_array).
+            # We'll assume it yields one item per call if called with a single chunk.
+            # Or, if it still returns a generator even for a single chunk, iterate that.
+
+            # Based on the provided example:
+            # generator = pipeline(text, ..., split_pattern=split_pat.pattern)
+            # for i, (*_, audio) in enumerate(generator, 1): all_audio.append(audio)
+            # This implies `pipeline` when given full text + split_pattern returns a generator of multiple audios.
+            # However, our current loop calls `pipeline` for *each chunk*.
+            # Let's assume `pipeline(one_chunk)` returns the audio directly or a generator that yields one audio.
+
+            # The previous logic for extracting audio_data from generator_output seemed complex.
+            # Let's simplify based on the assumption that KPipeline(single_chunk) yields audio data.
+            # Typically, a TTS pipeline for a short text segment would produce one audio output.
+
+            # If KPipeline(chunk) returns a generator that yields one audio array:
             if hasattr(generator_output, '__iter__') and not isinstance(generator_output, (str, bytes, dict, np.ndarray)):
                 try:
-                    # Attempt to get the first item yielded by the generator.
-                    # This assumes the generator yields the audio data (np.ndarray) directly as its first item.
-                    # If KPipeline yields multiple items or a structured object, this needs adjustment.
-                    audio_data_candidate = next(iter(generator_output))
-
-                    if isinstance(audio_data_candidate, np.ndarray):
-                        audio_data = audio_data_candidate
-                    # Handling cases where the generator might yield a tuple/list containing the ndarray
-                    elif isinstance(audio_data_candidate, (list, tuple)) and len(audio_data_candidate) > 0:
-                        # Common pattern: TTS might yield (audio_array, sample_rate) or similar.
-                        # We'll search for the ndarray, prioritizing the first one found.
-                        # Or, if the original debug output is a hint, it might be the last element.
-                        # Let's assume for now it might be the last element if it's a list/tuple.
-                        if isinstance(audio_data_candidate[-1], np.ndarray):
-                            audio_data = audio_data_candidate[-1]
-                        else: # Check if any element is an ndarray
-                            for item in audio_data_candidate:
-                                if isinstance(item, np.ndarray):
-                                    audio_data = item
-                                    print(f"DEBUG: Found ndarray in yielded tuple/list at index {audio_data_candidate.index(item)}")
-                                    break
-                            if audio_data is None:
-                                print(f"Warning: Generator yielded a list/tuple, but no np.ndarray found within: {audio_data_candidate}")
-                    else:
-                        print(f"Warning: Generator yielded an item of type {type(audio_data_candidate)}, not np.ndarray or a collection containing one.")
-                        audio_data = None
+                    # Try to get the first (and presumably only) item from the generator
+                    # The example `(*_, audio)` suggests the audio is the last element if a tuple is yielded.
+                    for item in generator_output: # Iterate, assuming it might yield multiple things
+                        if isinstance(item, np.ndarray):
+                            audio_data = item
+                            break # Take the first numpy array found
+                        elif isinstance(item, (list,tuple)) and len(item) > 0 and isinstance(item[-1], np.ndarray):
+                            audio_data = item[-1] # As in (*_, audio_data)
+                            break
+                    if audio_data is None:
+                        # Fallback to the previous complex extraction if simple iteration fails
+                        # This is a safety net, ideally KPipeline(chunk) is simpler.
+                        first_item = next(iter(generator_output)) # Re-consuming, careful if generator is stateful
+                        if isinstance(first_item, np.ndarray):
+                            audio_data = first_item
+                        elif isinstance(first_item, (list, tuple)) and len(first_item) > 0 and isinstance(first_item[-1], np.ndarray):
+                            audio_data = first_item[-1]
+                        # else: print(f"Warning: Generator for chunk {i+1} yielded an unexpected item: {first_item}")
 
                 except StopIteration:
-                    print("Warning: Generator from pipeline was empty.")
+                    print(f"Warning: Generator from pipeline was empty for chunk {i+1}.")
                     audio_data = None
                 except Exception as e_gen:
-                    print(f"Error consuming generator from pipeline: {e_gen}")
+                    print(f"Error consuming generator from pipeline for chunk {i+1}: {e_gen}")
                     audio_data = None
             elif isinstance(generator_output, np.ndarray): # If pipeline directly returns an ndarray
                 audio_data = generator_output
             else:
-                print(f"Warning: Pipeline returned an unexpected type: {type(generator_output)}. Expected a generator or np.ndarray.")
+                print(f"Warning: Pipeline returned an unexpected type for chunk {i+1}: {type(generator_output)}. Expected a generator or np.ndarray.")
                 audio_data = None
+
 
             if audio_data is not None and isinstance(audio_data, np.ndarray) and audio_data.size > 0:
                 all_audio_segments.append(audio_data)
-                np.save(chunk_audio_file, audio_data)  # Save for potential resume
+                # np.save is removed - no saving of temporary chunks.
             else:
+                # Simplified warning, removed 'returned_values' as it might be complex.
                 print(
-                    f'Warning: No valid audio data obtained for chunk {i+1}. Text: "{text_chunk[:50]}..." Pipeline returned: {returned_values}'
+                    f'Warning: No valid audio data obtained for chunk {i+1}. Text: "{text_chunk[:50]}..."'
                 )
         except Exception as e:
             print(f"Error synthesizing chunk {i+1} ('{text_chunk[:50]}...'): {e}")
-            # Decide whether to stop or continue (currently continues)
         pbar.update(1)
 
     pbar.close()
 
     if not all_audio_segments:
-        print("No audio segments were generated or loaded. Cannot create MP3.")
+        print("No audio segments were generated. Cannot create MP3.")
         return
 
     # 6. Concatenate audio segments and save to MP3
@@ -343,19 +312,7 @@ def convert_pdf_to_mp3(
         )
         print(f"Successfully saved MP3 to {output_mp3_path}")
 
-        # 7. Clean up temporary chunk files
-        # Consider always cleaning up if successful, regardless of 'resume' flag,
-        # as 'resume' is for input, not for preserving output intermediates indefinitely.
-        print(f"Cleaning up temporary chunk files from {tmp_dir}...")
-        for item in tmp_dir.iterdir():
-            if item.is_file():  # Ensure it's a file before unlinking
-                item.unlink()
-            try:
-                tmp_dir.rmdir()  # Remove the directory itself if empty
-            except OSError:
-                print(
-                    f"Warning: Could not remove temporary directory {tmp_dir}. It might not be empty."
-                )
+        # 7. Clean up temporary chunk files - This section is removed as temp files are no longer used.
 
     except Exception as e:
         print(f"Error saving MP3 file: {e}")
