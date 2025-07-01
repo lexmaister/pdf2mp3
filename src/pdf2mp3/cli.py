@@ -93,17 +93,6 @@ def main():
         help="Replace an existing OUTPUT_MP3."
     )
     runtime_group.add_argument(
-        "--resume",
-        action="store_true",
-        help="Continue a previously interrupted run by reusing temporary chunk files."
-    )
-    runtime_group.add_argument(
-        "--tmp-dir",
-        type=Path,
-        default=None,
-        help="Directory for temporary chunk storage (default: “.<output-stem>_chunks”)."
-    )
-    runtime_group.add_argument(
         "--no-progress",
         action="store_false",
         dest="show_progress",
@@ -151,8 +140,8 @@ def main():
             bitrate_mode=args.bitrate,
             compression_level=args.compression,
             device=args.device,
-            tmp_dir=args.tmp_dir,
-            resume=args.resume,
+            # tmp_dir=args.tmp_dir, # Removed
+            # resume=args.resume, # Removed
             show_progress=args.show_progress,
             overwrite=args.overwrite,
         )

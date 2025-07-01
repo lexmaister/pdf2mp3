@@ -239,18 +239,9 @@ def test_overwrite_option(dummy_pdf, mock_convert_pdf_to_mp3, mock_args):
     mock_convert_pdf_to_mp3.assert_called_once()
     assert mock_convert_pdf_to_mp3.call_args[1]['overwrite'] is True
 
-def test_resume_option(dummy_pdf, mock_convert_pdf_to_mp3, mock_args):
-    mock_args([str(dummy_pdf), "--resume"])
-    cli.main()
-    mock_convert_pdf_to_mp3.assert_called_once()
-    assert mock_convert_pdf_to_mp3.call_args[1]['resume'] is True
+# Removed test_resume_option as --resume CLI argument is deleted.
 
-def test_tmp_dir_option(dummy_pdf, tmp_path, mock_convert_pdf_to_mp3, mock_args):
-    custom_tmp_dir = tmp_path / "custom_tmp"
-    mock_args([str(dummy_pdf), "--tmp-dir", str(custom_tmp_dir)])
-    cli.main()
-    mock_convert_pdf_to_mp3.assert_called_once()
-    assert mock_convert_pdf_to_mp3.call_args[1]['tmp_dir'] == custom_tmp_dir
+# Removed test_tmp_dir_option as --tmp-dir CLI argument is deleted.
 
 def test_no_progress_option(dummy_pdf, mock_convert_pdf_to_mp3, mock_args):
     mock_args([str(dummy_pdf), "--no-progress"])
@@ -354,22 +345,31 @@ def test_all_defaults_passed_to_core(dummy_pdf, mock_convert_pdf_to_mp3, mock_ar
     assert kwargs['bitrate_mode'] == 'CONSTANT'
     assert kwargs['compression_level'] == 0.5
     assert kwargs['device'] is None # core.py handles auto-detect
-    assert kwargs['tmp_dir'] is None # core.py handles default
-    assert kwargs['resume'] is False
+    # tmp_dir is no longer a parameter for core.convert_pdf_to_mp3
+    # resume is no longer a parameter for core.convert_pdf_to_mp3
+    assert 'tmp_dir' not in kwargs
+    assert 'resume' not in kwargs
     assert kwargs['show_progress'] is True
     assert kwargs['overwrite'] is False
 
 # Example of how to use subprocess for a very basic CLI invocation test
 # This is more of an integration test and might be slower / more complex to set up.
 # For unit testing argument parsing, mocking sys.argv and calling main() is usually sufficient.
-# @pytest.mark.skip(reason="Subprocess tests are more like integration tests, slower")
-# def test_cli_with_subprocess_version():
-# """Test CLI invocation via subprocess for --version."""
-# This requires the package to be installed or python -m pdf2mp3.cli to work
-# result = subprocess.run([sys.executable, "-m", "pdf2mp3.cli", "--version"], capture_output=True, text=True)
-# assert result.returncode == 0
-# assert f"pdf2mp3 {PKG_VERSION}" in result.stdout
-#
+@pytest.mark.skipif(cli is None, reason="CLI module not available for subprocess test.")
+def test_cli_with_subprocess_version(monkeypatch):
+    """Test CLI invocation via subprocess for --version. Requires package to be installed."""
+    # This test assumes that `pip install -e .` or `pip install .` has been run,
+    # making the `pdf2mp3` script available on the PATH within the test environment.
+    try:
+        result = subprocess.run(["pdf2mp3", "--version"], capture_output=True, text=True, check=True)
+        assert result.returncode == 0
+        assert f"pdf2mp3 {PKG_VERSION}" in result.stdout.strip()
+    except FileNotFoundError:
+        pytest.skip("pdf2mp3 command not found in PATH. Run 'pip install -e .' first.")
+    except subprocess.CalledProcessError as e:
+        pytest.fail(f"CLI subprocess call failed: {e}\nstdout:\n{e.stdout}\nstderr:\n{e.stderr}")
+
+
 # @pytest.mark.skip(reason="Subprocess tests are more like integration tests, slower")
 # def test_cli_with_subprocess_help():
 # """Test CLI invocation via subprocess for --help."""
