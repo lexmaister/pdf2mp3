@@ -41,7 +41,7 @@ This allows your changes in the `src` directory to be reflected immediately with
 
 ### Requirements
 * Python 3.10+
-* PyPDF2
+* pypdf
 * kokoro (Kokoro TTS Python package)
 * soundfile
 * numpy
